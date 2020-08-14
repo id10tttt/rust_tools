@@ -1,12 +1,23 @@
+extern crate chrono;
+
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 use std::net::UdpSocket;
 use std::process::Command;
+use chrono::Local;
 
 
 fn main() {
     let current_ip: String = get_current_ip_address();
     send_email(current_ip);
+}
+
+fn get_email_subject_name() -> String {
+    let current_time = Local::now();
+    let f_now = current_time.format("%Y-%m-%dT%H:%M:%S");
+    let current_datetime = f_now.to_string();
+    let subject_head = String::from("Datetime: ");
+    return subject_head + &*current_datetime;
 }
 
 fn send_email(current_ip: String) {
@@ -16,11 +27,12 @@ fn send_email(current_ip: String) {
     let smtp_reply_mail = env!("SMTP_REPLY_MAIL");
     let smtp_to_mail = env!("SMTP_TO_MAIL");
 
+    let subject_name = get_email_subject_name();
     let email_client = Message::builder()
         .from(smtp_from_mail.parse().unwrap())
         .reply_to(smtp_reply_mail.parse().unwrap())
         .to(smtp_to_mail.parse().unwrap())
-        .subject("Latest ip address")
+        .subject(subject_name)
         .body(current_ip)
         .unwrap();
     let cred_id = Credentials::new(
@@ -40,7 +52,7 @@ fn send_email(current_ip: String) {
 }
 
 fn get_current_ip_address() -> String {
-    let ip_addr = get_current_ip().unwrap();
+    let ip_addr = get_current_local_ip().unwrap();
     let shell_ip = "curl ip.sb";
     let public_ip = Command::new("bash")
         .arg("-c")
@@ -50,11 +62,11 @@ fn get_current_ip_address() -> String {
 
     let output_str = String::from_utf8_lossy(&public_ip.stdout);
     let public_ip_addr = output_str.to_string();
-    let message = ip_addr + " \n" + &*public_ip_addr;
+    let message = String::from("Localhost: ") + &*ip_addr + " \nPublic IP: " + &*public_ip_addr;
     return message;
 }
 
-fn get_current_ip() -> Option<String> {
+fn get_current_local_ip() -> Option<String> {
     let socket = match UdpSocket::bind("0.0.0.0:0") {
         Ok(s) => s,
         Err(_) => return None,
